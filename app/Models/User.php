@@ -20,7 +20,12 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'email',
+        'username',
+        'class',
+        'nisn',
+        'nip',
+        'birth_date',
+        'role',
         'password',
     ];
 
@@ -42,8 +47,18 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'birth_date' => 'date',
         ];
+    }
+
+    public function savingsGoals()
+    {
+        return $this->hasMany(SavingsGoal::class);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
     }
 }

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('savings_goals', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->string('title');
             $table->decimal('target_amount', 15, 2);
             $table->decimal('current_amount', 15, 2)->default(0);

@@ -11,6 +11,7 @@ class Transaction extends Model
 
     protected $fillable = [
         'savings_goal_id',
+        'user_id',
         'type',
         'amount',
         'category',
@@ -22,6 +23,11 @@ class Transaction extends Model
         'amount' => 'decimal:2',
         'transaction_date' => 'date',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function savingsGoal()
     {

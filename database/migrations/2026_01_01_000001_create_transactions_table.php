@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('savings_goal_id')->nullable()->constrained('savings_goals')->nullOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->enum('type', ['income', 'expense', 'deposit', 'withdrawal']);
             $table->decimal('amount', 15, 2);
             $table->string('category');

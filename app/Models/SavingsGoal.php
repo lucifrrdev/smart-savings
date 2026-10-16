@@ -11,6 +11,7 @@ class SavingsGoal extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'title',
         'target_amount',
         'current_amount',
@@ -27,6 +28,11 @@ class SavingsGoal extends Model
         'current_amount' => 'decimal:2',
         'target_date' => 'date',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function transactions()
     {

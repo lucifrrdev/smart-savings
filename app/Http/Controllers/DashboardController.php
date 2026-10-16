@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\SavingsGoal;
 use App\Models\Transaction;
+use App\Models\TransactionHistory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -11,124 +13,90 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $goals = SavingsGoal::with('transactions')->orderBy('target_date')->get();
+        $user = auth()->user();
+        $isSiswa = $user && $user->role === 'siswa';
 
-        $activeGoals = $goals->where('status', 'active');
-        $achievedGoals = $goals->where('status', 'achieved');
-        $pausedGoals = $goals->where('status', 'paused');
+        // 1. Total Tabungan (Semua jenis setoran/deposit)
+        $totalSavedQuery = Transaction::where('type', 'deposit');
+        if ($isSiswa) {
+            $totalSavedQuery->where('user_id', $user->id);
+        }
+        $totalSaved = $totalSavedQuery->sum('amount');
 
-        $totalTarget = $goals->sum('target_amount');
-        $totalSaved = $goals->sum('current_amount');
-        $overallProgress = $totalTarget > 0 ? round(($totalSaved / $totalTarget) * 100, 1) : 0;
+        // 2. Pemasukan Hari Ini (Setoran uang masuk pada tanggal hari ini)
+        $dailyIncomeQuery = Transaction::where('type', 'deposit')
+            ->whereDate('transaction_date', Carbon::today());
+        if ($isSiswa) {
+            $dailyIncomeQuery->where('user_id', $user->id);
+        }
+        $dailyIncome = $dailyIncomeQuery->sum('amount');
 
-        $incomeThisMonth = Transaction::where('type', 'income')
-            ->whereMonth('transaction_date', Carbon::now()->month)
-            ->whereYear('transaction_date', Carbon::now()->year)
-            ->sum('amount');
+        // 3. Pemasukan Minggu Ini (Setoran uang masuk 7 hari terakhir)
+        $weeklyIncomeQuery = Transaction::where('type', 'deposit')
+            ->whereDate('transaction_date', '>=', Carbon::today()->subDays(6));
+        if ($isSiswa) {
+            $weeklyIncomeQuery->where('user_id', $user->id);
+        }
+        $weeklyIncome = $weeklyIncomeQuery->sum('amount');
 
-        $expenseThisMonth = Transaction::where('type', 'expense')
-            ->whereMonth('transaction_date', Carbon::now()->month)
-            ->whereYear('transaction_date', Carbon::now()->year)
-            ->sum('amount');
+        // 4. Total Siswa yang Menabung (Jumlah user unik yang melakukan deposit)
+        $totalStudentsSavingQuery = Transaction::where('type', 'deposit');
+        if ($isSiswa) {
+            $totalStudentsSavingQuery->where('user_id', $user->id);
+        }
+        $totalStudentsSaving = $totalStudentsSavingQuery->distinct('user_id')->count('user_id');
 
-        $depositThisMonth = Transaction::whereIn('type', ['deposit'])
-            ->whereMonth('transaction_date', Carbon::now()->month)
-            ->whereYear('transaction_date', Carbon::now()->year)
-            ->sum('amount');
+        // 5. Ringkasan Uang Masuk Hari Ini per Kelas (Kelas 4, 5, dan 6)
+        $class4DailyQuery = Transaction::where('type', 'deposit')
+            ->whereDate('transaction_date', Carbon::today())
+            ->whereHas('user', function ($query) {
+                $query->where('class', 'like', '%4%');
+            });
+        if ($isSiswa) {
+            $class4DailyQuery->where('user_id', $user->id);
+        }
+        $class4Daily = $class4DailyQuery->sum('amount');
 
-        $withdrawalThisMonth = Transaction::whereIn('type', ['withdrawal'])
-            ->whereMonth('transaction_date', Carbon::now()->month)
-            ->whereYear('transaction_date', Carbon::now()->year)
-            ->sum('amount');
+        $class5DailyQuery = Transaction::where('type', 'deposit')
+            ->whereDate('transaction_date', Carbon::today())
+            ->whereHas('user', function ($query) {
+                $query->where('class', 'like', '%5%');
+            });
+        if ($isSiswa) {
+            $class5DailyQuery->where('user_id', $user->id);
+        }
+        $class5Daily = $class5DailyQuery->sum('amount');
 
-        $recentTransactions = Transaction::with('savingsGoal')
+        $class6DailyQuery = Transaction::where('type', 'deposit')
+            ->whereDate('transaction_date', Carbon::today())
+            ->whereHas('user', function ($query) {
+                $query->where('class', 'like', '%6%');
+            });
+        if ($isSiswa) {
+            $class6DailyQuery->where('user_id', $user->id);
+        }
+        $class6Daily = $class6DailyQuery->sum('amount');
+
+        // Transaksi Terbaru
+        $recentTransactionsQuery = Transaction::with(['savingsGoal', 'user'])
+            ->where('type', 'deposit')
             ->latest('transaction_date')
-            ->limit(10)
-            ->get();
-
-        $monthlyData = $this->getMonthlyChartData();
-        $categoryData = $this->getCategoryChartData();
-        $goalProgressData = $this->getGoalProgressData($activeGoals);
+            ->latest('id')
+            ->limit(5);
+        if ($isSiswa) {
+            $recentTransactionsQuery->where('user_id', $user->id);
+        }
+        $recentTransactions = $recentTransactionsQuery->get();
 
         return view('dashboard', compact(
-            'goals',
-            'activeGoals',
-            'achievedGoals',
-            'pausedGoals',
-            'totalTarget',
             'totalSaved',
-            'overallProgress',
-            'incomeThisMonth',
-            'expenseThisMonth',
-            'depositThisMonth',
-            'withdrawalThisMonth',
-            'recentTransactions',
-            'monthlyData',
-            'categoryData',
-            'goalProgressData'
+            'dailyIncome',
+            'weeklyIncome',
+            'totalStudentsSaving',
+            'class4Daily',
+            'class5Daily',
+            'class6Daily',
+            'recentTransactions'
         ));
-    }
-
-    private function getMonthlyChartData()
-    {
-        $months = [];
-        $incomeData = [];
-        $expenseData = [];
-        $depositData = [];
-
-        for ($i = 5; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $months[] = $date->format('M Y');
-
-            $income = Transaction::where('type', 'income')
-                ->whereMonth('transaction_date', $date->month)
-                ->whereYear('transaction_date', $date->year)
-                ->sum('amount');
-
-            $expense = Transaction::where('type', 'expense')
-                ->whereMonth('transaction_date', $date->month)
-                ->whereYear('transaction_date', $date->year)
-                ->sum('amount');
-
-            $deposit = Transaction::where('type', 'deposit')
-                ->whereMonth('transaction_date', $date->month)
-                ->whereYear('transaction_date', $date->year)
-                ->sum('amount');
-
-            $incomeData[] = (float) $income;
-            $expenseData[] = (float) $expense;
-            $depositData[] = (float) $deposit;
-        }
-
-        return [
-            'labels' => $months,
-            'income' => $incomeData,
-            'expense' => $expenseData,
-            'deposit' => $depositData,
-        ];
-    }
-
-    private function getCategoryChartData()
-    {
-        $expenses = Transaction::where('type', 'expense')
-            ->selectRaw('category, SUM(amount) as total')
-            ->groupBy('category')
-            ->orderByDesc('total')
-            ->limit(6)
-            ->get();
-
-        return [
-            'labels' => $expenses->pluck('category')->toArray(),
-            'data' => $expenses->pluck('total')->map(fn($v) => (float) $v)->toArray(),
-        ];
-    }
-
-    private function getGoalProgressData($activeGoals)
-    {
-        return [
-            'labels' => $activeGoals->pluck('title')->toArray(),
-            'current' => $activeGoals->pluck('current_amount')->map(fn($v) => (float) $v)->toArray(),
-            'target' => $activeGoals->pluck('target_amount')->map(fn($v) => (float) $v)->toArray(),
-        ];
     }
 }
