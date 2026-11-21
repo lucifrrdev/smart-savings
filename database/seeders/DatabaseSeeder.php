@@ -40,7 +40,7 @@ class DatabaseSeeder extends Seeder
             'class' => 'Kelas 4 A',
             'nisn' => '1111111111',
             'birth_date' => '2016-05-12',
-            'password' => 'password',
+            'password' => Hash::make('password'),
         ]);
 
         $user5 = User::create([
@@ -49,7 +49,7 @@ class DatabaseSeeder extends Seeder
             'class' => 'Kelas 5 B',
             'nisn' => '2222222222',
             'birth_date' => '2015-08-20',
-            'password' => 'password',
+            'password' => Hash::make('password'),
         ]);
 
         $user6 = User::create([
@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
             'class' => 'Kelas 6 C',
             'nisn' => '3333333333',
             'birth_date' => '2014-11-03',
-            'password' => 'password',
+            'password' => Hash::make('password'),
         ]);
 
         // Default admin user for login demo
@@ -69,7 +69,7 @@ class DatabaseSeeder extends Seeder
             'nip' => '198501012010011001',
             'birth_date' => '1990-01-01',
             'role' => 'admin',
-            'password' => 'admin123',
+            'password' => Hash::make('admin123'),
         ]);
 
         // Superadmin user
@@ -80,7 +80,7 @@ class DatabaseSeeder extends Seeder
             'nisn' => '9999999999',
             'birth_date' => '1985-01-01',
             'role' => 'superadmin',
-            'password' => 'password',
+            'password' => Hash::make('password'),
         ]);
 
         // 2. Create Savings Goals associated to users

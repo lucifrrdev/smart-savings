@@ -61,4 +61,32 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaction::class);
     }
+
+    /**
+     * Dapatkan digit/nomor kelas yang diampu (misal: 'Wali Kelas 4' -> '4').
+     */
+    public function getAssignedClassGrade(): ?string
+    {
+        if (preg_match('/(\d+)/', $this->class ?? '', $matches)) {
+            return $matches[1];
+        }
+        return null;
+    }
+
+    /**
+     * Dapatkan label kelas yang diampu (misal: 'Kelas 4').
+     */
+    public function getAssignedClassLabelAttribute(): string
+    {
+        $grade = $this->getAssignedClassGrade();
+        if ($grade) {
+            return 'Kelas ' . $grade;
+        }
+
+        if (!empty($this->class)) {
+            return trim(preg_replace('/^wali\s*/i', '', $this->class));
+        }
+
+        return 'Kelas';
+    }
 }

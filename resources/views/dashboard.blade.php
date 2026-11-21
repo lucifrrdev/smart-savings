@@ -5,8 +5,23 @@
 @section('content')
 <!-- Header Section -->
 <div class="mb-8">
-    <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-2 text-[#1b1b18] dark:text-white">Dashboard IoT Smart Savings</h1>
-    <p class="text-sm text-[#706f6c] dark:text-zinc-400">Pantau aktivitas tabungan siswa SD Kelas 4, 5, dan 6 secara real-time.</p>
+    <div class="flex flex-wrap items-center gap-3 mb-2">
+        <h1 class="text-2xl lg:text-3xl font-bold tracking-tight text-[#1b1b18] dark:text-white">Dashboard IoT Smart Savings</h1>
+        @if(auth()->user()->role === 'admin')
+            <span class="px-3 py-1 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-full text-xs font-bold flex items-center gap-1.5">
+                <i class="fa-solid fa-chalkboard-user"></i> {{ auth()->user()->assigned_class_label }}
+            </span>
+        @endif
+    </div>
+    <p class="text-sm text-[#706f6c] dark:text-zinc-400">
+        @if(auth()->user()->role === 'admin')
+            Pantau aktivitas tabungan siswa <b>{{ auth()->user()->assigned_class_label }}</b> secara real-time.
+        @elseif(auth()->user()->role === 'siswa')
+            Pantau aktivitas tabungan Anda secara real-time.
+        @else
+            Pantau aktivitas tabungan siswa SD Kelas 4, 5, dan 6 secara real-time.
+        @endif
+    </p>
 </div>
 
 <!-- Metrics Grid -->
@@ -23,7 +38,13 @@
             </div>
         </div>
         <div class="text-xs text-[#706f6c] dark:text-zinc-400">
-            <span>Akumulasi tabungan semua siswa</span>
+            @if(auth()->user()->role === 'admin')
+                <span>Akumulasi tabungan siswa {{ auth()->user()->assigned_class_label }}</span>
+            @elseif(auth()->user()->role === 'siswa')
+                <span>Akumulasi tabungan Anda</span>
+            @else
+                <span>Akumulasi tabungan semua siswa</span>
+            @endif
         </div>
     </div>
 
@@ -71,7 +92,13 @@
             </div>
         </div>
         <div class="text-xs text-[#706f6c] dark:text-zinc-400">
-            <span>Jumlah siswa terdaftar yang aktif menabung</span>
+            @if(auth()->user()->role === 'admin')
+                <span>Siswa {{ auth()->user()->assigned_class_label }} yang aktif menabung</span>
+            @elseif(auth()->user()->role === 'siswa')
+                <span>Status tabungan Anda</span>
+            @else
+                <span>Jumlah siswa terdaftar yang aktif menabung</span>
+            @endif
         </div>
     </div>
 </div>
@@ -123,7 +150,13 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-8 text-center text-[#706f6c] dark:text-zinc-400">Belum ada setoran masuk.</td>
+                                <td colspan="5" class="px-6 py-8 text-center text-[#706f6c] dark:text-zinc-400">
+                                    @if(auth()->user()->role === 'admin')
+                                        Belum ada setoran masuk dari siswa {{ auth()->user()->assigned_class_label }}.
+                                    @else
+                                        Belum ada setoran masuk.
+                                    @endif
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -138,50 +171,37 @@
         <!-- Class Savings Summary Widget -->
         <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-[#19140010] dark:border-zinc-800 p-6">
             <h3 class="font-bold text-lg mb-1 text-[#1b1b18] dark:text-white">Pemasukan Hari Ini</h3>
-            <p class="text-xs text-[#706f6c] dark:text-zinc-400 mb-6">Ringkasan tabungan masuk siswa Kelas 4, 5, dan 6</p>
+            <p class="text-xs text-[#706f6c] dark:text-zinc-400 mb-6">
+                @if(auth()->user()->role === 'admin')
+                    Ringkasan tabungan masuk siswa {{ auth()->user()->assigned_class_label }}
+                @elseif(auth()->user()->role === 'siswa')
+                    Ringkasan tabungan masuk Anda
+                @else
+                    Ringkasan tabungan masuk siswa Kelas 4, 5, dan 6
+                @endif
+            </p>
             
             <div class="space-y-5">
-                <!-- Kelas 4 -->
-                <div class="p-4 bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-900/30 rounded-2xl flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-emerald-600 text-white w-9 h-9 rounded-xl flex items-center justify-center font-bold">4</div>
-                        <div>
-                            <h4 class="font-bold text-sm text-[#1b1b18] dark:text-white">Kelas 4</h4>
-                            <p class="text-xs text-[#706f6c] dark:text-zinc-400">Setoran masuk hari ini</p>
+                @forelse($classSummaries as $summary)
+                    <div class="p-4 {{ $summary['box_bg'] }} border rounded-2xl flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="{{ $summary['bg_badge'] }} text-white w-9 h-9 rounded-xl flex items-center justify-center font-bold">
+                                {{ $summary['grade'] }}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-[#1b1b18] dark:text-white">{{ $summary['name'] }}</h4>
+                                <p class="text-xs text-[#706f6c] dark:text-zinc-400">Setoran masuk hari ini</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold {{ $summary['text_color'] }} text-sm">Rp {{ number_format($summary['daily_income'], 0, ',', '.') }}</span>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Rp {{ number_format($class4Daily, 0, ',', '.') }}</span>
+                @empty
+                    <div class="p-4 text-center text-xs text-[#706f6c] dark:text-zinc-400">
+                        Tidak ada ringkasan kelas.
                     </div>
-                </div>
-
-                <!-- Kelas 5 -->
-                <div class="p-4 bg-blue-50/40 dark:bg-blue-950/10 border border-blue-100/50 dark:border-blue-900/30 rounded-2xl flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-blue-600 text-white w-9 h-9 rounded-xl flex items-center justify-center font-bold">5</div>
-                        <div>
-                            <h4 class="font-bold text-sm text-[#1b1b18] dark:text-white">Kelas 5</h4>
-                            <p class="text-xs text-[#706f6c] dark:text-zinc-400">Setoran masuk hari ini</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span class="font-bold text-blue-600 dark:text-blue-400 text-sm">Rp {{ number_format($class5Daily, 0, ',', '.') }}</span>
-                    </div>
-                </div>
-
-                <!-- Kelas 6 -->
-                <div class="p-4 bg-purple-50/40 dark:bg-purple-950/10 border border-purple-100/50 dark:border-purple-900/30 rounded-2xl flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-purple-600 text-white w-9 h-9 rounded-xl flex items-center justify-center font-bold">6</div>
-                        <div>
-                            <h4 class="font-bold text-sm text-[#1b1b18] dark:text-white">Kelas 6</h4>
-                            <p class="text-xs text-[#706f6c] dark:text-zinc-400">Setoran masuk hari ini</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span class="font-bold text-purple-600 dark:text-purple-400 text-sm">Rp {{ number_format($class6Daily, 0, ',', '.') }}</span>
-                    </div>
-                </div>
+                @endforelse
             </div>
         </div>
 

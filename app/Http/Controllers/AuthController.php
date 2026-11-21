@@ -23,9 +23,39 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+        $user = User::where('username', $credentials['username'])->first();
+
+        // Jika password di database belum di-hash (misal plain text dari phpMyAdmin atau seeder lama)
+        if ($user && !Hash::isHashed($user->password)) {
+            if ($user->password === $credentials['password']) {
+                $user->password = Hash::make($credentials['password']);
+                $user->save();
+
+                Auth::login($user, $request->boolean('remember'));
+                $request->session()->regenerate();
+                return redirect()->intended('/dashboard');
+            }
+        }
+
+        try {
+            if (Auth::attempt($credentials, $request->boolean('remember'))) {
+                $request->session()->regenerate();
+                return redirect()->intended('/dashboard');
+            }
+        } catch (\RuntimeException $e) {
+            // Tangani jika hash di database tidak valid/rusak tapi plain text cocok
+            if ($user && $user->password === $credentials['password']) {
+                $user->password = Hash::make($credentials['password']);
+                $user->save();
+
+                Auth::login($user, $request->boolean('remember'));
+                $request->session()->regenerate();
+                return redirect()->intended('/dashboard');
+            }
+
+            throw ValidationException::withMessages([
+                'username' => __('auth.failed'),
+            ]);
         }
 
         throw ValidationException::withMessages([
@@ -75,7 +105,7 @@ class AuthController extends Controller
                 'birth_date' => $request->birth_date,
                 'username' => $request->username,
                 'role' => 'admin', // Otomatis menjadi admin
-                'password' => $request->password,
+                'password' => Hash::make($request->password),
             ]);
         } else {
             $request->validate([
@@ -106,11 +136,12 @@ class AuthController extends Controller
                 'birth_date' => $request->birth_date,
                 'username' => $request->username,
                 'role' => 'siswa', // Otomatis menjadi role siswa
-                'password' => $request->password,
+                'password' => Hash::make($request->password),
             ]);
         }
 
         Auth::login($user);
+        $request->session()->regenerate();
 
         return redirect('/dashboard');
     }
